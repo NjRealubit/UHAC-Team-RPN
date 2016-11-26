@@ -1,0 +1,233 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <RTClib.h>
+#include <LiquidCrystal.h>
+String tag[2]={
+  "54544848536956666652","54544848536956695751"};
+String name[2]={
+  "BRIDGE"};
+String roll[2]={
+  "20130174","20130207"};
+const int chipSelect=10;
+int  val=0,n=2; 
+int bytesread=0; 
+int buttonState=0;  
+String gettag=String();
+char filename[]="00000000.CSV";
+RTC_DS1307 RTC;
+LiquidCrystal lcd(9,8,7,6,5,4);
+
+void setup() 
+{ 
+  Serial.begin(9600); 
+  lcd.begin(16,2);
+  Wire.begin(); 
+  RTC.begin(); 
+  pinMode(2,OUTPUT);   
+  digitalWrite(2,HIGH);  
+
+  pinMode(10,OUTPUT);  
+  if(!SD.begin(chipSelect)) 
+  {
+    return;
+  }
+  delay(100);
+  //Serial.println("Card initialized.");
+  if(!RTC.isrunning())
+  {
+    //Serial.println("RTC is NOT running!");
+  }
+  char filename[]="00000000.CSV";
+}  
+
+void getFilename(char *filename)
+{
+  DateTime now=RTC.now();
+  int year=now.year();
+  int month=now.month();
+  int day=now.day();
+  filename[0]='2';
+  filename[1]='0';
+  filename[2]=(year-2000)/10+'0';
+  filename[3]=year%10+'0';
+  filename[4]=month/10+'0';
+  filename[5]=month%10+'0';
+  filename[6]=day/10+'0';
+  filename[7]=day%10+'0';
+  filename[8]='.';
+  filename[9]='C';
+  filename[10]='S';
+  filename[11]='V';
+  return;
+}
+
+void printdate_time()
+{
+    DateTime now=RTC.now();
+    lcd.setCursor(0,1);  
+    lcd.print("Time");   
+    lcd.setCursor(5,1);  
+    lcd.print(now.hour(),DEC); 
+    lcd.setCursor(7,1); 
+    lcd.print(':');      
+    lcd.setCursor(8,1);    
+    lcd.print(now.minute(),DEC);  
+    lcd.setCursor(10,1);   
+    lcd.print(':');      
+    lcd.setCursor(11,1);    
+    lcd.print(now.second(), DEC); 
+
+  // display DATE on FIRST ROW
+    lcd.setCursor(0, 0); 
+    lcd.print("Date");   
+    lcd.setCursor(5, 0);   
+    lcd.print(now.month(), DEC);  
+    lcd.setCursor(7, 0);  //
+    lcd.print('/');       // 
+    lcd.setCursor(8, 0);  // 
+    lcd.print(now.day(), DEC);  
+    lcd.setCursor(10, 0); 
+    lcd.print('/');      
+    lcd.setCursor(11, 0);   
+    lcd.print(now.year(), DEC); 
+}
+
+void printdata(String name,String roll)
+{
+  lcd.clear();
+  lcd.print(name);
+  lcd.setCursor(0,1);
+  lcd.print(roll);
+  delay(800);
+  lcd.clear();
+  printdate_time();
+  
+}
+
+String getname(String t)
+{ 
+  int index=0;
+  for(int i=0;i<n;i++)
+  {
+    if(t.equals(tag[i]))
+    {
+      index=i;
+      break;
+    }
+  }
+  return name[index];
+}
+
+
+String getroll(String t)
+{ 
+  int index=0;
+  for(int i=0;i<n;i++)
+  {
+    if(t.equals(tag[i]))
+    {
+      index=i;
+      break;
+    }
+  }
+  return roll[index];
+}
+
+
+void readtag_dumpSD()
+{
+    if(Serial.available()>0) 
+    {          
+        if((val=Serial.read())==10)  
+        {
+            bytesread=0; 
+            while(bytesread<10)  
+            {
+                if(Serial.available()>0)
+                { 
+                    val=Serial.read(); 
+                    if((val==10)||(val==13))  
+                    { 
+                      break;  // stop reading 
+                    } 
+                    gettag=gettag+val;          
+                    bytesread++;   
+                } 
+            } 
+            if(bytesread==10)  
+            { 
+                DateTime now=RTC.now(); 
+                String stu=getname(gettag); 
+                String rol=getroll(gettag); 
+                digitalWrite(2, LOW); 
+                delay(1500);  
+                digitalWrite(2, HIGH);  
+                getFilename(filename);
+                if(!SD.exists(filename))  
+                {
+                    File dataFile=SD.open(filename,FILE_WRITE);
+                    if(dataFile)
+                    {
+                        dataFile.print("Name");
+                        dataFile.print(",");
+                        dataFile.print("Roll");
+                        dataFile.print(",");
+                        dataFile.print("Time");
+                        dataFile.println();
+
+                        dataFile.print(stu);
+                        dataFile.print(",");
+                        dataFile.print(rol);
+                        dataFile.print(",");
+                        dataFile.print(now.hour());
+                        dataFile.print(":");
+                        dataFile.print(now.minute());
+                        dataFile.print(":");
+                        dataFile.print(now.second());
+                        dataFile.println();
+                        dataFile.close();
+                        printdata(stu,rol);
+                    }
+                }
+                else if(SD.exists(filename))  
+                {
+                    File dataFile=SD.open(filename,FILE_WRITE);
+                    if(dataFile)
+                    {
+                        dataFile.print(stu);
+                        dataFile.print(",");
+                        dataFile.print(rol);
+                        dataFile.print(",");
+                        dataFile.print(now.hour());
+                        dataFile.print(":");
+                        dataFile.print(now.minute());
+                        dataFile.print(":");
+                        dataFile.print(now.second());
+                        dataFile.println();
+                        dataFile.close();
+                        printdata(stu,rol);
+                    }  
+                    else 
+                    {
+                        
+                    } 
+                }
+            } 
+            bytesread=0; 
+            digitalWrite(2, LOW); // deactivate the RFID reader for a moment so it will not flood
+            delay(1500);  // wait for a bit 
+            digitalWrite(2, HIGH);  // Activate the RFID reader
+            gettag=NULL;
+        } 
+    } 
+}
+  
+void loop()
+{ 
+    printdate_time();
+    readtag_dumpSD();
+} 
+
+
+
