@@ -1,0 +1,43 @@
+int et=0,val=0; 
+String gettag=String();
+void setup()
+
+{
+  Serial.begin(9600);
+  pinMode(2,OUTPUT);  
+  digitalWrite(2,HIGH); 
+}
+
+void loop()
+{
+   if(Serial.available()>0) 
+    {          
+        if((val=Serial.read())==10)  
+        {
+            et=0; 
+            while(et<10) 
+            {
+                if(Serial.available()>0)
+                { 
+                    val=Serial.read(); 
+                    if((val==10)||(val==13))  
+                    { 
+                      break; 
+                    } 
+                    gettag=gettag+val;  
+                    et++;  
+                } 
+            } 
+            if(et==10)  
+            { 
+                Serial.print("TAG code is: "); 
+                Serial.println(gettag);
+            }
+            et=0; 
+            digitalWrite(2, LOW); 
+            delay(1500); 
+            digitalWrite(2, HIGH); 
+            gettag=NULL;
+        }
+    }
+}
