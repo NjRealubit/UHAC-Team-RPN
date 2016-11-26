@@ -1,0 +1,30 @@
+using UnityEngine;
+using System.Collections;
+
+
+public class Test : MonoBehaviour {
+
+	private SerialController serialController;
+	public GameObject Sample;
+	public Transform Data;
+
+	// Use this for initialization
+	void Start () {
+		serialController = GameObject.Find ("SerialController").GetComponent<SerialController> ();
+	}
+	
+	 //Update is called once per frame
+	void Update () {
+		string data = serialController.ReadSerialMessage ();
+		if (data == null) {
+
+			return;
+		} 
+
+		else {
+			print (data);
+			Instantiate (Sample, Data.transform.position, Data.transform.rotation);
+
+		}
+	}
+}
